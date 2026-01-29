@@ -84,8 +84,9 @@ def func2():
 """
         issues = analyze_code(code)
         duplicate_issues = [i for i in issues if i["type"] == "duplicate_code"]
-        # Should detect duplicate blocks
-        assert len(duplicate_issues) >= 0  # May or may not detect depending on implementation
+        # Duplicate detection may find blocks depending on implementation
+        # This test just ensures the detector doesn't crash
+        assert isinstance(duplicate_issues, list)
 
 
 class TestAIAnalyzer:

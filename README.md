@@ -10,7 +10,7 @@ Code-Analy is a comprehensive MCP (Model Context Protocol) server that enables A
 
 ### 1. Comprehensive Code Smell Detection
 
-Detects **5 types** of code smells:
+Detects **6 types** of code smells:
 
 1. **Too Many Parameters (>5)**
    - Identifies functions with more than 5 parameters (excluding `self`/`cls`)

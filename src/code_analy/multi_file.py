@@ -222,7 +222,10 @@ class MultiFileAnalyzer:
             "total_classes": total_classes,
             "issue_counts": issue_counts,
             "top_files_with_issues": top_files,
-            "average_issues_per_file": len(self.file_analyses) and sum(len(fa.issues) for fa in self.file_analyses) / len(self.file_analyses) or 0
+            "average_issues_per_file": (
+                sum(len(fa.issues) for fa in self.file_analyses) / len(self.file_analyses)
+                if self.file_analyses else 0
+            )
         }
 
 
