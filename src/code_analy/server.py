@@ -2,12 +2,16 @@
 
 import asyncio
 import json
+import os
 from typing import Any
 from mcp.server import Server
 from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
 from mcp.server.stdio import stdio_server
 
 from .analyzer import analyze_code
+from .ai_analyzer import AIAnalyzer
+from .refactor import apply_refactoring
+from .multi_file import analyze_directory
 
 
 # Create MCP server instance
@@ -26,8 +30,8 @@ async def list_tools() -> list[Tool]:
             name="analyze_code",
             description=(
                 "Analyze Python source code for code smells and issues. "
-                "Detects: functions with too many parameters (>5), "
-                "unused imports, and dead/unreachable code."
+                "Detects: too many parameters (>5), unused imports, dead code, "
+                "long methods (>50 lines), deep nesting (>3 levels), and duplicate code blocks."
             ),
             inputSchema={
                 "type": "object",
@@ -38,6 +42,100 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["source_code"]
+            }
+        ),
+        Tool(
+            name="detect_code_smells",
+            description=(
+                "Comprehensive code smell detection including: "
+                "long methods (>50 lines), duplicate code blocks, "
+                "deep nesting (>3 levels), too many parameters (>5), "
+                "and dead code/unused imports."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "source_code": {
+                        "type": "string",
+                        "description": "Python source code to analyze"
+                    }
+                },
+                "required": ["source_code"]
+            }
+        ),
+        Tool(
+            name="suggest_refactoring",
+            description=(
+                "AI-powered refactoring suggestions using LLM analysis. "
+                "Provides specific, actionable recommendations with code examples "
+                "and reasoning for each suggestion."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "source_code": {
+                        "type": "string",
+                        "description": "Python source code to analyze"
+                    },
+                    "api_key": {
+                        "type": "string",
+                        "description": "Optional API key for LLM provider"
+                    },
+                    "provider": {
+                        "type": "string",
+                        "description": "LLM provider: 'openai', 'anthropic', or 'mock' (default: 'mock')",
+                        "enum": ["openai", "anthropic", "mock"]
+                    }
+                },
+                "required": ["source_code"]
+            }
+        ),
+        Tool(
+            name="apply_refactoring",
+            description=(
+                "Apply safe, automated refactorings: "
+                "rename variables/functions, extract methods, "
+                "remove unused imports, or format code consistently."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "source_code": {
+                        "type": "string",
+                        "description": "Python source code to refactor"
+                    },
+                    "operation": {
+                        "type": "string",
+                        "description": "Refactoring operation to apply",
+                        "enum": ["remove_unused_imports", "rename_variable", "extract_method", "format_code"]
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "description": "Operation-specific parameters"
+                    }
+                },
+                "required": ["source_code", "operation"]
+            }
+        ),
+        Tool(
+            name="analyze_directory",
+            description=(
+                "Analyze all Python files in a directory. "
+                "Tracks dependencies between files and generates project-level insights."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "directory_path": {
+                        "type": "string",
+                        "description": "Path to the directory to analyze"
+                    },
+                    "recursive": {
+                        "type": "boolean",
+                        "description": "Whether to analyze subdirectories recursively (default: true)"
+                    }
+                },
+                "required": ["directory_path"]
             }
         ),
         Tool(
@@ -135,29 +233,126 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
             "issues": filtered_issues
         }
     
-    # Validate common parameter
-    source_code = arguments.get("source_code")
-    if not source_code:
-        raise ValueError("source_code is required")
-    
     try:
-        issues = analyze_code(source_code)
-        
-        if name == "analyze_code":
+        # Handle different tools
+        if name in ["analyze_code", "detect_code_smells"]:
+            source_code = arguments.get("source_code")
+            if not source_code:
+                raise ValueError("source_code is required")
+            
+            issues = analyze_code(source_code)
             result = format_result(issues)
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        elif name == "suggest_refactoring":
+            source_code = arguments.get("source_code")
+            if not source_code:
+                raise ValueError("source_code is required")
+            
+            # Get issues first
+            issues = analyze_code(source_code)
+            
+            # Get AI suggestions
+            api_key = arguments.get("api_key") or os.environ.get("LLM_API_KEY")
+            provider = arguments.get("provider", "mock")
+            
+            ai_analyzer = AIAnalyzer(api_key=api_key, provider=provider)
+            suggestions = ai_analyzer.suggest_refactorings(source_code, issues)
+            
+            result = {
+                "total_suggestions": len(suggestions),
+                "suggestions": [
+                    {
+                        "title": s.title,
+                        "reasoning": s.reasoning,
+                        "code_before": s.code_before,
+                        "code_after": s.code_after,
+                        "category": s.category,
+                        "priority": s.priority
+                    }
+                    for s in suggestions
+                ]
+            }
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        elif name == "apply_refactoring":
+            source_code = arguments.get("source_code")
+            operation = arguments.get("operation")
+            parameters = arguments.get("parameters", {})
+            
+            if not source_code or not operation:
+                raise ValueError("source_code and operation are required")
+            
+            result = apply_refactoring(source_code, operation, **parameters)
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        elif name == "analyze_directory":
+            directory_path = arguments.get("directory_path")
+            recursive = arguments.get("recursive", True)
+            
+            if not directory_path:
+                raise ValueError("directory_path is required")
+            
+            result = analyze_directory(directory_path, recursive)
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
         elif name == "check_function_parameters":
+            source_code = arguments.get("source_code")
+            if not source_code:
+                raise ValueError("source_code is required")
+            
+            issues = analyze_code(source_code)
             result = format_result(issues, "too_many_parameters")
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
         elif name == "check_unused_imports":
+            source_code = arguments.get("source_code")
+            if not source_code:
+                raise ValueError("source_code is required")
+            
+            issues = analyze_code(source_code)
             result = format_result(issues, "unused_import")
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
         elif name == "check_dead_code":
+            source_code = arguments.get("source_code")
+            if not source_code:
+                raise ValueError("source_code is required")
+            
+            issues = analyze_code(source_code)
             result = format_result(issues, "dead_code")
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
         else:
             raise ValueError(f"Unknown tool: {name}")
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(result, indent=2)
-        )]
     
     except ValueError as e:
         return [TextContent(
