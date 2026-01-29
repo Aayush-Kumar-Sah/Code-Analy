@@ -2,6 +2,24 @@
 
 Intelligent Code Analysis & Refactoring MCP Server
 
+## 🎯 Quick Links
+
+- **[Quick Start Guide](QUICKSTART.md)** - Get started in 60 seconds
+- **[FAQ](FAQ.md)** - Can I change the test code? (Answer: You don't need to!)
+- **[Configuration](config.py)** - Customize detection thresholds
+- **[Sample Code](sample_code.py)** - Example to analyze
+
+## ⚠️ Important Note
+
+**The tests in `tests/` are hardcoded to validate the tool works correctly.**
+
+**You can analyze ANY Python code you want!** Use:
+```bash
+python analyze_your_code.py your_file.py
+```
+
+See [FAQ.md](FAQ.md) for details.
+
 ## Overview
 
 Code-Analy is a comprehensive MCP (Model Context Protocol) server that enables AI agents to analyze Python codebases, detect code smells, suggest intelligent refactorings, and apply automated code transformations. It uses AST (Abstract Syntax Tree) based analysis combined with AI-powered suggestions to provide deep code insights.
@@ -75,6 +93,22 @@ pip install openai anthropic
 ```
 
 ## Usage
+
+### ⚠️ Important: Analyzing Your Own Code
+
+**The tests in the `tests/` folder are hardcoded only for validation.** You can analyze **ANY Python code** you want! The tool is completely flexible.
+
+**Quick Start - Analyze Your Code:**
+
+```bash
+# Analyze a single file
+python analyze_your_code.py path/to/your/file.py
+
+# Analyze an entire directory
+python analyze_your_code.py path/to/your/project/
+```
+
+See [FAQ.md](FAQ.md) for detailed examples and customization options.
 
 ### Running the MCP Server
 
@@ -213,6 +247,8 @@ ai = AIAnalyzer(provider="mock")
 
 ## Testing
 
+**Note:** The tests use hardcoded code snippets to validate that the analyzer works correctly. They do NOT limit what code you can analyze. You can analyze ANY Python code - see [FAQ.md](FAQ.md) for examples.
+
 Run the comprehensive test suite:
 
 ```bash
@@ -220,11 +256,69 @@ pytest tests/
 ```
 
 The test suite includes 29+ test cases covering:
-- All 5 types of code smell detection
+- All 6 types of code smell detection
 - AI-powered suggestion generation
 - Automated refactoring operations
 - Multi-file analysis
 - Edge cases and error handling
+
+## Analyzing Your Own Code
+
+### Command-Line Tool
+
+The easiest way to analyze your own code:
+
+```bash
+# Analyze a single file
+python analyze_your_code.py your_script.py
+
+# Analyze a directory
+python analyze_your_code.py your_project/
+
+# Example with a Django project
+python analyze_your_code.py /path/to/django/project/
+```
+
+### Python API for Custom Code
+
+You can analyze ANY code string or file:
+
+```python
+from code_analy.analyzer import analyze_code
+
+# Read your file
+with open('your_file.py', 'r') as f:
+    your_code = f.read()
+
+# Or define code as a string
+your_code = """
+def my_function(param1, param2, param3, param4, param5, param6):
+    # Your code here
+    pass
+"""
+
+# Analyze it!
+issues = analyze_code(your_code)
+
+# View results
+for issue in issues:
+    print(f"Line {issue['line']}: {issue['message']}")
+```
+
+### Analyze Entire Projects
+
+```python
+from code_analy.multi_file import analyze_directory
+
+# Analyze your project
+results = analyze_directory("/path/to/your/project", recursive=True)
+
+print(f"Total files: {results['total_files']}")
+print(f"Total issues: {results['total_issues']}")
+print(f"Summary: {results['summary']}")
+```
+
+**See [FAQ.md](FAQ.md) for more examples and customization options!**
 
 ## Demo
 
