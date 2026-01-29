@@ -354,7 +354,7 @@ Code-Analy/
 ### Core Components
 
 1. **Analyzer** (`analyzer.py`): AST-based code analysis engine
-   - Detects all 5 types of code smells
+   - Detects all 6 types of code smells
    - Uses Python's `ast` module for accurate parsing
    - Provides detailed issue reports with line numbers
 

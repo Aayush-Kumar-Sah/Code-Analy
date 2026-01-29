@@ -117,7 +117,7 @@ git diff --name-only --cached | grep '\.py$' | while read file; do
 done
 ```
 
-### Workflow 5: Custom Thresholds
+### Workflow 5: Analyze with Standard Settings
 
 ```python
 from code_analy.analyzer import CodeAnalyzer
@@ -125,12 +125,15 @@ from code_analy.analyzer import CodeAnalyzer
 code = "your code here"
 analyzer = CodeAnalyzer(code)
 
-# Use custom thresholds!
-analyzer._check_too_many_parameters(max_params=7)  # More permissive
-analyzer._check_long_methods(max_lines=100)        # Longer methods OK
+# Analyze with all checks
+issues = analyzer.analyze()
 
-issues = analyzer.issues
+# View results
+for issue in issues:
+    print(f"{issue.issue_type}: {issue.message}")
 ```
+
+Note: To customize detection thresholds, extend the CodeAnalyzer class (see "Advanced: Adding Custom Rules" below).
 
 ## Real-World Examples
 
@@ -185,17 +188,20 @@ MAX_PARAMETERS = 7  # More permissive
 MAX_METHOD_LINES = 100
 ```
 
-### Method 2: Programmatic
+### Method 2: Programmatic with Custom Thresholds
 
 ```python
 from code_analy.analyzer import CodeAnalyzer
 import ast
 
 class MyCustomAnalyzer(CodeAnalyzer):
-    def _check_too_many_parameters(self):
-        # Override with your own logic
-        max_params = 10  # Your threshold
+    def _check_too_many_parameters(self, max_params: int = 10):
+        # Override with your own default threshold
         super()._check_too_many_parameters(max_params=max_params)
+    
+    def _check_long_methods(self, max_lines: int = 100):
+        # Override with your own default threshold
+        super()._check_long_methods(max_lines=max_lines)
 
 # Use it
 analyzer = MyCustomAnalyzer(your_code)

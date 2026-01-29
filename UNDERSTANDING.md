@@ -137,8 +137,8 @@ def login(username, password, remember, session, redirect_url, csrf_token):
 """
 
 issues = analyze_code(code)
-print(f"Found {len(issues)} issues")
-# Output: Found 1 issues (too many parameters)
+print(f"Found {len(issues)} issue(s)")
+# Output: Found 1 issue(s) (too many parameters)
 ```
 
 ## Summary Table

@@ -12,7 +12,6 @@ Usage:
 
 import sys
 import os
-from pathlib import Path
 
 # Add src to path so we can import code_analy
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))

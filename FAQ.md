@@ -91,19 +91,22 @@ for issue in issues:
 
 ## Can I Customize What Issues Are Detected?
 
-**YES!** You can configure the analyzer:
+**YES!** You can extend the analyzer with custom thresholds:
 
 ```python
 from code_analy.analyzer import CodeAnalyzer
 
-# Create analyzer with your code
-analyzer = CodeAnalyzer(your_source_code)
+class CustomAnalyzer(CodeAnalyzer):
+    def _check_too_many_parameters(self, max_params: int = 7):
+        # Override with custom threshold
+        super()._check_too_many_parameters(max_params=max_params)
+    
+    def _check_long_methods(self, max_lines: int = 100):
+        # Override with custom threshold
+        super()._check_long_methods(max_lines=max_lines)
 
-# Run only specific checks
-analyzer._check_too_many_parameters(max_params=7)  # Custom threshold
-analyzer._check_long_methods(max_lines=100)  # Custom threshold
-
-# Or use the standard analyze() for all checks
+# Use custom analyzer
+analyzer = CustomAnalyzer(your_source_code)
 all_issues = analyzer.analyze()
 ```
 
