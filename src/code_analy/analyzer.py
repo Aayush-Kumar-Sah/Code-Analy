@@ -51,18 +51,18 @@ class CodeAnalyzer:
         """
         for node in ast.walk(self.tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                # Count parameters (excluding self/cls)
+                # Count parameters (excluding self/cls in methods)
                 param_count = len(node.args.args)
-                if param_count > 0 and node.args.args[0].arg in ('self', 'cls'):
+                
+                # Check if this is a method by looking at parent class
+                is_method = self._is_method(node)
+                if is_method and param_count > 0 and node.args.args[0].arg in ('self', 'cls'):
                     param_count -= 1
                 
                 # Also count other parameter types
                 param_count += len(node.args.posonlyargs)
                 param_count += len(node.args.kwonlyargs)
-                if node.args.vararg:
-                    param_count += 1
-                if node.args.kwarg:
-                    param_count += 1
+                # Note: *args and **kwargs are not counted as they serve different purposes
                 
                 if param_count > max_params:
                     self.issues.append(CodeIssue(
@@ -72,6 +72,21 @@ class CodeAnalyzer:
                         message=f"Function '{node.name}' has {param_count} parameters (max: {max_params})",
                         severity="warning"
                     ))
+    
+    def _is_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Check if a function is a method inside a class.
+        
+        Args:
+            node: Function or AsyncFunction node
+            
+        Returns:
+            True if the function is defined inside a class
+        """
+        for parent in ast.walk(self.tree):
+            if isinstance(parent, ast.ClassDef):
+                if node in ast.walk(parent):
+                    return True
+        return False
     
     def _check_unused_imports(self) -> None:
         """Check for unused imports in the code."""
@@ -88,7 +103,7 @@ class CodeAnalyzer:
                     name = alias.asname if alias.asname else alias.name
                     imports[name] = node
         
-        # Collect all name references
+        # Collect all name references including in annotations
         used_names: Set[str] = set()
         for node in ast.walk(self.tree):
             if isinstance(node, ast.Name):
@@ -117,9 +132,18 @@ class CodeAnalyzer:
     def _check_dead_code(self) -> None:
         """Check for unreachable code (dead code)."""
         for node in ast.walk(self.tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.If, ast.For, ast.While, ast.With)):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if hasattr(node, 'body') and node.body:
                     self._check_unreachable_code(node.body)
+            elif isinstance(node, (ast.If, ast.For, ast.While, ast.With)):
+                if hasattr(node, 'body') and node.body:
+                    self._check_unreachable_code(node.body)
+                # Also check else/orelse clauses
+                if hasattr(node, 'orelse') and node.orelse:
+                    self._check_unreachable_code(node.orelse)
+                # Check finally blocks for With statements
+                if hasattr(node, 'finalbody') and node.finalbody:
+                    self._check_unreachable_code(node.finalbody)
     
     def _check_unreachable_code(self, body: List[ast.stmt]) -> None:
         """Check if there's code after return/raise/break/continue statements.

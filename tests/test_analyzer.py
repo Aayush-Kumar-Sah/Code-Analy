@@ -51,6 +51,7 @@ class MyClass:
         issues = analyze_code(code)
         param_issues = [i for i in issues if i["type"] == "too_many_parameters"]
         assert len(param_issues) == 1
+        assert "6 parameters" in param_issues[0]["message"]
 
 
 class TestUnusedImports:

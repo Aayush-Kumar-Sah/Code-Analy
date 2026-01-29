@@ -114,106 +114,61 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
     Raises:
         ValueError: If the tool name is unknown or arguments are invalid
     """
-    if name == "analyze_code":
-        source_code = arguments.get("source_code")
-        if not source_code:
-            raise ValueError("source_code is required")
-        
-        try:
-            issues = analyze_code(source_code)
-            result = {
-                "total_issues": len(issues),
-                "issues": issues
-            }
-            return [TextContent(
-                type="text",
-                text=json.dumps(result, indent=2)
-            )]
-        except ValueError as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e)}, indent=2)
-            )]
     
-    elif name == "check_function_parameters":
-        source_code = arguments.get("source_code")
-        max_params = arguments.get("max_params", 5)
+    def format_result(issues: list, issue_type: str = None) -> dict:
+        """Helper to format analysis results.
         
-        if not source_code:
-            raise ValueError("source_code is required")
+        Args:
+            issues: List of all issues
+            issue_type: Optional filter for specific issue type
+            
+        Returns:
+            Formatted result dictionary
+        """
+        if issue_type:
+            filtered_issues = [i for i in issues if i["type"] == issue_type]
+        else:
+            filtered_issues = issues
         
-        try:
-            all_issues = analyze_code(source_code)
-            param_issues = [
-                issue for issue in all_issues
-                if issue["type"] == "too_many_parameters"
-            ]
-            result = {
-                "total_issues": len(param_issues),
-                "issues": param_issues
-            }
-            return [TextContent(
-                type="text",
-                text=json.dumps(result, indent=2)
-            )]
-        except ValueError as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e)}, indent=2)
-            )]
+        return {
+            "total_issues": len(filtered_issues),
+            "issues": filtered_issues
+        }
     
-    elif name == "check_unused_imports":
-        source_code = arguments.get("source_code")
-        if not source_code:
-            raise ValueError("source_code is required")
-        
-        try:
-            all_issues = analyze_code(source_code)
-            import_issues = [
-                issue for issue in all_issues
-                if issue["type"] == "unused_import"
-            ]
-            result = {
-                "total_issues": len(import_issues),
-                "issues": import_issues
-            }
-            return [TextContent(
-                type="text",
-                text=json.dumps(result, indent=2)
-            )]
-        except ValueError as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e)}, indent=2)
-            )]
+    # Validate common parameter
+    source_code = arguments.get("source_code")
+    if not source_code:
+        raise ValueError("source_code is required")
     
-    elif name == "check_dead_code":
-        source_code = arguments.get("source_code")
-        if not source_code:
-            raise ValueError("source_code is required")
+    try:
+        issues = analyze_code(source_code)
         
-        try:
-            all_issues = analyze_code(source_code)
-            dead_code_issues = [
-                issue for issue in all_issues
-                if issue["type"] == "dead_code"
-            ]
-            result = {
-                "total_issues": len(dead_code_issues),
-                "issues": dead_code_issues
-            }
-            return [TextContent(
-                type="text",
-                text=json.dumps(result, indent=2)
-            )]
-        except ValueError as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e)}, indent=2)
-            )]
+        if name == "analyze_code":
+            result = format_result(issues)
+        elif name == "check_function_parameters":
+            result = format_result(issues, "too_many_parameters")
+        elif name == "check_unused_imports":
+            result = format_result(issues, "unused_import")
+        elif name == "check_dead_code":
+            result = format_result(issues, "dead_code")
+        else:
+            raise ValueError(f"Unknown tool: {name}")
+        
+        return [TextContent(
+            type="text",
+            text=json.dumps(result, indent=2)
+        )]
     
-    else:
-        raise ValueError(f"Unknown tool: {name}")
+    except ValueError as e:
+        return [TextContent(
+            type="text",
+            text=json.dumps({"error": str(e)}, indent=2)
+        )]
+    except Exception as e:
+        return [TextContent(
+            type="text",
+            text=json.dumps({"error": f"Unexpected error: {str(e)}"}, indent=2)
+        )]
 
 
 async def main():
